@@ -1,12 +1,14 @@
 import numpy
 import cv2
 import os
+from os.path import dirname, abspath
 import random
 import itertools # for permutations. 
 import math
 
-IMAGE_FOLDER_PATH = r"raw_datasets/WIDER_train/images" #should be the top level 'images' folder.
-TRAINING_BBOX_WIDER = r"raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt"
+_root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
+IMAGE_FOLDER_PATH = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/images") #should be the top level 'images' folder.
+TRAINING_BBOX_WIDER = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt")
 
 # Minimum width and height for every face from the SOURCE dataset. Use _min_target_dim for output size!
 # Only one of these needs to be true for image to be valid. 
@@ -16,7 +18,7 @@ _min_im_height = 20
 _min_target_dim = 12 # the smallest dimension of the output images. 
 
 _max_ims = 20 # the number of images to generate. 
-_start_line =120000 # the line number to start at if you want to resume from last time. 
+_start_line = 120000 # the line number to start at if you want to resume from last time. 
 
 # Gets all the images from the file. Outputs a list of images, each with a list of boundingboxes inside them. The layout for one bounding box is:
 # x1, y1, w, h, blur, expression, illumination, invalid, occlusion, pose
@@ -85,7 +87,7 @@ def extract_list_of_faces(img_names_list,bboxes):
 				face = img_resized[y+trans_y:y+trans_y+h,x+trans_x:x+trans_x+w]
 				#cv2.imshow("a",face)
 				#cv2.waitKey()
-				cv2.imwrite(os.path.join(r"faces/",str(face_counter)+"_"+real_im_name),face)
+				cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/positives/")+str(face_counter)+"_"+real_im_name),face)
 				face_counter = face_counter+1
 
 

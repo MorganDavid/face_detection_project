@@ -1,16 +1,19 @@
 import os
+from os.path import dirname, abspath
 import cv2
 from widerSetExtraction import get_names_and_boxes
 import random
 import numpy as np
 import math 
 
-_images_path = r"raw_datasets/WIDER_train/images"
-_txt_path = r"raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt"
+_root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
+print(_root_project_dir)
+_images_path = os.path.join(_root_project_dir, r"data/raw_datasets/WIDER_train/images")
+_txt_path = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt")
 
-_max_ims = 5
+_max_ims = 3500
 _min_target_dim = 12 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
-_start_line = 0
+_start_line = 10000
 _negatives_per_image_max = 5
 
 # takes the list of bboxes and removes all but the positional attributes (the first four columns). 
@@ -32,7 +35,7 @@ def extract_negatives(image_path, names, boxes, negs_per_img):
 	
 	for file in names:
 		img = cv2.imread(os.path.join(_images_path,file))	
-		width, height, _ = img.shape
+		height,width, _ = img.shape
 
 		negs_per_this_img = random.randint(1,negs_per_img) # randomly calculate how many negatives to make from this image. 
 		#print("boxes is ", boxes)
@@ -49,9 +52,11 @@ def extract_negatives(image_path, names, boxes, negs_per_img):
 
 				iou = iou_between_list([neg_x, neg_y, neg_width, neg_height], boxes[file_cnt])
 				#print("iou: ", iou)
-			cropped_img = img[neg_y:neg_y+neg_height,neg_x:neg_width+neg_x]
+			cropped_img = img[neg_y:neg_y+neg_height,neg_x:neg_x+neg_width]
+			print("got %s from %s"%(cropped_img.shape,file))
+			#print("file: %s w %d h %d x %d y %d im_width %d im_height %d file_count: %d generated image shape %s"%(file,neg_width, neg_height,neg_x,neg_y,width,height,file_cnt, cropped_img.shape))
 			negs_to_return.append(cropped_img)
-			#print("w %d h %d x %d y %d"%(neg_width, neg_height,neg_x,neg_y))
+			
 		file_cnt=file_cnt+1
 	return negs_to_return
 
@@ -61,8 +66,10 @@ def iou_between_list(bbox1, img_bboxes):
 	#print("bbox1 is: ", bbox1)
 	for b in img_bboxes: # loops through every image.
 		iou = intersection_over_union(bbox1, b)
-		#print("iou ", iou, " b ", b )
-		if iou > iou_max: iou_max = iou
+		
+		if iou > iou_max: 
+			print("%s intersects with %s"%(b,bbox1))
+			iou_max = iou
 	return iou_max
 
 
@@ -82,6 +89,5 @@ names, boxes = get_names_and_boxes(_txt_path, _start_line, _max_ims) # use funct
 #print(names, " ", boxes)
 
 negatives = extract_negatives(_images_path, names, boxes, _negatives_per_image_max)
-
-cv2.imshow("a", negatives[1])
-cv2.waitKey()
+for n in range(0,len(negatives)):
+	cv2.imwrite(os.path.join(_root_project_dir,r"data/negatives/")+str(n)+".jpg",negatives[n])
