@@ -15,10 +15,12 @@ TRAINING_BBOX_WIDER = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_t
 _min_im_width = 20 
 _min_im_height = 20
 
-_min_target_dim = 12 # the smallest dimension of the output images. 
+_min_target_dim = 20 # the smallest dimension of the output images. 
 
 _max_ims = 20 # the number of images to generate. 
-_start_line = 120000 # the line number to start at if you want to resume from last time. 
+_start_line = 100000 # the line number to start at if you want to resume from last time. 
+
+_do_write_images = True # Should we write images to file. Turn off for debuging. 
 
 # Gets all the images from the file. Outputs a list of images, each with a list of boundingboxes inside them. The layout for one bounding box is:
 # x1, y1, w, h, blur, expression, illumination, invalid, occlusion, pose
@@ -53,6 +55,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 
 #Extracts a list of faces from all the collected images. 
 def extract_list_of_faces(img_names_list,bboxes):
+	print ("Starting face extraction from file!" if _do_write_images else "[NOT WRITING IMS TO FILE!] Starting face extraction")
 	im_counter = 0 # counts what image we are currenlty looking at.
 	face_imgs = []
 	for im_name in img_names_list:
@@ -61,12 +64,13 @@ def extract_list_of_faces(img_names_list,bboxes):
 		face_counter = 0 # Counts how many faces we got from this image. 
 		
 		for box in bboxes[im_counter]: # Loop through all the bboxes in this image. 
+			box = numpy.asarray(box)
+			box = box[:4].tolist()
+
 			real_im_name = im_name.split("/")[1]
 			print("this sbox is: ", box)
-			x = box[0]
-			y = box[1]
-			w = box[2]
-			h = box[3]
+			
+			x,y,w,h = box
 			
 			scale_amnt = 12 / min(w,h) # How much do we need to resize by to get our min target dimension.
 			img_resized = cv2.resize(img,(int(height*scale_amnt),int(width*scale_amnt)))
@@ -87,10 +91,10 @@ def extract_list_of_faces(img_names_list,bboxes):
 				face = img_resized[y+trans_y:y+trans_y+h,x+trans_x:x+trans_x+w]
 				#cv2.imshow("a",face)
 				#cv2.waitKey()
-				cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/positives/")+str(face_counter)+"_"+real_im_name),face)
+
+				if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/20px/positives/")+str(face_counter)+"_"+real_im_name),face) 
+				
 				face_counter = face_counter+1
-
-
 
 			#print(face_counter," faces done already. just wrote face ", im_name+"- x: ", x, " y: ", y, " w: ", w, " h: ", h)
 		print("finished writing image: ",im_name)

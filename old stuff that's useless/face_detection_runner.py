@@ -5,7 +5,7 @@ from mtcnn.mtcnn import MTCNN, PNet
 detector = MTCNN()
 pnet = detector.get_PNet()
 
-image = cv2.imread("trump.jpg")
+image = cv2.imread("person.png")
 #Makes multiple scales of the input image. 
 def make_scale_pyramid(img):
 	width, height, depth = img.shape
@@ -52,5 +52,4 @@ def step1():
 		boxes, _ = detector.generate_bounding_box(out1[0, :, :, 1].copy(),out0[0, :, :, :].copy(), 1, [0.6,0.7,0.7])#The last parameter is the steps_threashold. Don't know what it does. 
 		print(boxes)
 
-step1()
 

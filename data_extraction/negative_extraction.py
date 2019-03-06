@@ -11,10 +11,10 @@ print(_root_project_dir)
 _images_path = os.path.join(_root_project_dir, r"data/raw_datasets/WIDER_train/images")
 _txt_path = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt")
 
-_max_ims = 3500
-_min_target_dim = 12 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
-_start_line = 10000
-_negatives_per_image_max = 5
+_max_ims = 500
+_min_target_dim = 20 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
+_start_line =115000
+_negatives_per_image_max = 3
 
 # takes the list of bboxes and removes all but the positional attributes (the first four columns). 
 def reduce_cols_from_bboxes(boxes):
@@ -45,8 +45,8 @@ def extract_negatives(image_path, names, boxes, negs_per_img):
 			# TODO: make IOU value a percentage of image size (not sure if needed) currently using number of pixels overlapped
 			while(iou>2):
 				#randomly calculate the possition of this negative box
-				neg_width = 12 
-				neg_height = random.randint(12,19)
+				neg_width = _min_target_dim
+				neg_height = random.randint(_min_target_dim,_min_target_dim+10)
 				neg_x = random.randint(0,width-neg_width)
 				neg_y = random.randint(0,height-neg_height)
 
@@ -90,4 +90,6 @@ names, boxes = get_names_and_boxes(_txt_path, _start_line, _max_ims) # use funct
 
 negatives = extract_negatives(_images_path, names, boxes, _negatives_per_image_max)
 for n in range(0,len(negatives)):
-	cv2.imwrite(os.path.join(_root_project_dir,r"data/negatives/")+str(n)+".jpg",negatives[n])
+	write_dir = os.path.join(_root_project_dir,r"data/negatives20px/rand")+str(random.randint(0,10))+str(names[n].split('/')[1])
+	cv2.imwrite(write_dir,negatives[n])
+	print("Just wrote somin to ",write_dir)
