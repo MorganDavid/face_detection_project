@@ -17,7 +17,7 @@ _min_im_height = 20
 
 _min_target_dim = 20 # the smallest dimension of the output images. 
 
-_max_ims = 20 # the number of images to generate. 
+_max_ims = 5 # the number of images to generate. 
 _start_line = 100000 # the line number to start at if you want to resume from last time. 
 
 _do_write_images = True # Should we write images to file. Turn off for debuging. 
@@ -33,7 +33,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 	im_count = 0 # the number of images we've taken
 	counter = 0#The line in the file we are currently at.
 	for i in bbxfile:
-		if len(i[:-1])<4 and counter >= start_line:#First check if this is a face count line (length <3)
+		if len(i[:-1])<4 and counter >= start_line: # First check if this is a face count line (length <3)
 			bboxForThisImage = []
 			for z in range(counter+1,counter+int(i)+1):#Loop over all the boxes in this image. 
 				this_bbox =bbxfile[z][:-1]#Take the \n off
@@ -70,36 +70,46 @@ def extract_list_of_faces(img_names_list,bboxes):
 			real_im_name = im_name.split("/")[1]
 			print("this sbox is: ", box)
 			
-			x,y,w,h = box
-			
-			scale_amnt = 12 / min(w,h) # How much do we need to resize by to get our min target dimension.
-			img_resized = cv2.resize(img,(int(height*scale_amnt),int(width*scale_amnt)))
-			new_width, new_height, _ = img_resized.shape
-			
-			x,y,w,h = map(lambda x: math.floor(x*scale_amnt),[x,y,w,h]) # convert all the coords to the resized image. 
+			scaled_imgs = make_img_pyramid(im = img, bbox = box)
+			for scaled_im in scaled_imgs: # loop through every image in the image pyramid. 
+				new_width, new_height, _ = scaled_im[0].shape # get resiszed img shape
+				x,y,w,h = scaled_im[1:] # get resized image bbox shape. 
 
-			#print("x is %d, y is %d. img dims are: %d x %d "%(x,y,new_width, new_height))
-			
-			#face = img_resized[y:y+h,x:x+w]
-			# -- transform the bounding box around the face. --
-			transformations_x = [-1,0,1] # amounts to move the box around the face for preventing overfitting.
-			transformations_y = [-3,-2,-1,0,1,2] 
-			perms = list(itertools.product(transformations_x,transformations_y))
-			#print("permutations are: ", perms, ". creating ", len(perms), " images for this face.")
-			
-			for trans_x,trans_y in perms:
-				face = img_resized[y+trans_y:y+trans_y+h,x+trans_x:x+trans_x+w]
-				#cv2.imshow("a",face)
-				#cv2.waitKey()
-
-				if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/20px/positives/")+str(face_counter)+"_"+real_im_name),face) 
+				print("[current box info] x is %d, y is %d. w is %d h is %d img dims are: %d x %d "%(x,y,w,h,new_width, new_height))
 				
-				face_counter = face_counter+1
+				''' Transform the bounding box around the face. '''
+				transformations_x = [-1,0,1] # amounts to move the box around the face for preventing overfitting.
+				transformations_y = [-3,-2,-1,0,1,2]
+				perms = list(itertools.product(transformations_x,transformations_y))
+				#print("permutations are: ", perms, ". creating ", len(perms), " images for this face.")
+				# Move over all permutations of transformations and write them. 
+				for trans_x,trans_y in perms:
+					print("x %d y %d trans_x %d trans_y %d"%(x,y,trans_x,trans_y))
+					face = scaled_im[0][y+trans_y:y+trans_y+h,x+trans_x:x+trans_x+w]
+					#cv2.imshow("a",face)
+					#cv2.waitKey();
+					#cv2.destroyAllWindows();
+					if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/20px/new_positives/")+str(face_counter)+"_"+real_im_name),face) 
+					
+					face_counter = face_counter+1
 
-			#print(face_counter," faces done already. just wrote face ", im_name+"- x: ", x, " y: ", y, " w: ", w, " h: ", h)
+				#print(face_counter," faces done already. just wrote face ", im_name+"- x: ", x, " y: ", y, " w: ", w, " h: ", h)
 		print("finished writing image: ",im_name)
 		im_counter = im_counter+1
 	return face_imgs
+
+# Returns a list of FULL (not just the bbox) images for this bbox. scales is the list of face heights you want.
+# output is [img, x,y,w,h] where the coords are the new scaled coords of this bounding box.  
+def make_img_pyramid(im, bbox,scales = [18,19,20,22]):
+	scaled_imgs = []
+	width, height, _ = im.shape
+	x,y,w,h = bbox
+	for scale in scales:
+		scale_amnt = scale / min(w,h) # How much do we need to resize by to get our min target dimension.
+		img_resized = cv2.resize(im,(int(height*scale_amnt),int(width*scale_amnt)))
+		new_x,new_y,new_w,new_h = map(lambda x: math.floor(x*scale_amnt),[x,y,w,h])# also return the adjusted bbox sizes. 
+		scaled_imgs.append((img_resized,new_x,new_y,new_w,new_h))
+	return scaled_imgs
 
 #Opens an image viewer with bounding boxes drawn over it. 
 #bbox should be a list, while image_path should be a string path

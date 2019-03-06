@@ -17,7 +17,7 @@ val_path = os.path.join(_root_project_dir,r"data/20px/validation")
 test_path = os.path.join(_root_project_dir,r"data/20px/test")
 
 BATCH_SIZE = 20
-do_train_model = False
+do_train_model = True
 
 IM_WIDTH=20
 IM_HEIGHT=20
