@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 from cnn import makeModel,  MODEL_FILENAME
 from keras.models import load_model
-DETC_TRHESH = 1.5e-3#0.05#The threashold for it being a face (higher = more sensitive)
-
+DETC_TRHESH = 1.5e-11#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.
+NUM_FACES = 30 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
 IM_WIDTH = 20
 IM_HEIGHT = 20
 
@@ -21,7 +21,7 @@ def make_sliding_window(image, step_size, kernel_size):
 		for x in range(0,x_up_to,step_size):
 			yield (x,y,image[y:y+kernel_size[1],x:x+kernel_size[0]])
 			
-image = cv2.imread("1d_scaled.jpg")
+image = cv2.imread("scaled_image_harry.jpg")
 height, width, depth = image.shape
 print(image.shape)
 resize_factor = 0.5
@@ -32,10 +32,6 @@ images = []
 positions = []
 print("starting the sliding window loop. ")
 for x,y,im in make_sliding_window(trumpim,2, (IM_HEIGHT,IM_WIDTH)):#Don't change kernel size, resize original image instead. Step size can be changed. 
-	#cv2.imshow("t",im)
-	#cv2.waitKey()
-	#cv2.destroyAllWindows()
-	print("looping through sliding window")
 	images.append(im)
 	positions.append((x,y))
 	count = count + 1
@@ -45,13 +41,14 @@ images = np.asarray(images)
 print(images.shape)
 
 classes = model.predict(images, batch_size=10)
+print("Mean of the detection: ", np.mean(classes))
 init_boxes = []; # will contain every box which has probability above the detection threashold. 
 for i in range(0,len(classes)):
 	this_class = classes[i]
 	x,y = positions[i]
-	print(i, '.jpg : ', this_class)
+	print("confidence at x %d, y %d: "%(x,y),this_class)
 	if this_class<DETC_TRHESH:
-		cv2.rectangle(trumpim, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
+		#cv2.rectangle(trumpim, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
 		init_boxes.append([x,y,x+IM_WIDTH,y+IM_HEIGHT]);
 
 # Malisiewicz et al.
@@ -111,12 +108,29 @@ def non_max_suppression(boxes, overlapThresh):
 	# return only the bounding boxes that were picked using the
 	# integer data type
 	return boxes[pick].astype("int")
-
-#perform NMS
-
+'''
+# This bit takes every box above the confidence threash and performs NMS.
 supr_boxes = non_max_suppression(np.asarray(init_boxes),0.3);
 for box in supr_boxes:
 	cv2.rectangle(trumpim,(box[0],box[1]),(box[2],box[3]),(255,0,0),2)
+'''
+def draw_from_threashold(init_boxes):
+	supr_boxes = non_max_suppression(np.asarray(init_boxes),0.3);
+	for box in supr_boxes:
+		cv2.rectangle(trumpim,(box[0],box[1]),(box[2],box[3]),(255,0,0),2)
+draw_from_threashold(init_boxes)
+#This method takes the top K confidence boxes and uses them. Also performs NMS.
+def draw_top_k_rectangles(k):
+	indices = np.argpartition(classes.flatten(),k)[:k]
+	boxes_top_k_xy = [positions[i] for i in indices] # get x,y of every box
+	boxes_top_k = [[i[0],i[1],i[0]+IM_WIDTH,i[1]+IM_HEIGHT] for i in boxes_top_k_xy] # make them four coords. 
+	print(boxes_top_k)
+	boxes_nms = non_max_suppression(np.asarray(boxes_top_k),0.28)
+	for box in boxes_nms:
+		x,y=box[:2]
+		cv2.rectangle(trumpim,(x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1)
+#draw_top_k_rectangles(100)
+
 
 cv2.imshow("t",trumpim)
 cv2.waitKey()
