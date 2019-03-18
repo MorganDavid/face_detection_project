@@ -3,13 +3,13 @@ import sys
 import os
 import cv2
 import numpy as np
-from cnn import makeModel,  MODEL_FILENAME
 from keras.models import load_model
-DETC_TRHESH = 1.5e-11#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.
+import time
+DETC_TRHESH = 1.5e-11#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
 NUM_FACES = 30 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
 IM_WIDTH = 20
 IM_HEIGHT = 20
-
+_model_dir = r'my_network_trained.h5'
 #kernel_size is tupple: (height,width)
 #Returns generator. Loop over this function
 def make_sliding_window(image, step_size, kernel_size):
@@ -31,22 +31,26 @@ count = 0
 images = []
 positions = []
 print("starting the sliding window loop. ")
+start = time.time()
 for x,y,im in make_sliding_window(trumpim,2, (IM_HEIGHT,IM_WIDTH)):#Don't change kernel size, resize original image instead. Step size can be changed. 
 	images.append(im)
 	positions.append((x,y))
 	count = count + 1
-	
-model =load_model("test_model.h5")
-images = np.asarray(images)
-print(images.shape)
 
+print("sliding window took ",time.time()-start, " seconds.")	
+model =load_model(_model_dir)
+images = np.asarray(images)
+
+print("starting prediction")
+start = time.time()
 classes = model.predict(images, batch_size=10)
-print("Mean of the detection: ", np.mean(classes))
+print("prediction took ",time.time()-start, " seconds.")
+
 init_boxes = []; # will contain every box which has probability above the detection threashold. 
 for i in range(0,len(classes)):
 	this_class = classes[i]
 	x,y = positions[i]
-	print("confidence at x %d, y %d: "%(x,y),this_class)
+	#print("confidence at x %d, y %d: "%(x,y),this_class)
 	if this_class<DETC_TRHESH:
 		#cv2.rectangle(trumpim, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
 		init_boxes.append([x,y,x+IM_WIDTH,y+IM_HEIGHT]);
@@ -132,6 +136,6 @@ def draw_top_k_rectangles(k):
 #draw_top_k_rectangles(100)
 
 
-cv2.imshow("t",trumpim)
-cv2.waitKey()
-cv2.destroyAllWindows()
+#cv2.imshow("t",trumpim)
+#cv2.waitKey()
+#cv2.destroyAllWindows()
