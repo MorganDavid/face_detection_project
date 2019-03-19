@@ -6,13 +6,13 @@ import numpy as np
 from keras.models import load_model
 import time
 
-class run_one_image():
+class image_predictor():
 	DETC_TRHESH = 1.5e-11#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
-	NUM_FACES = 80 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
+	NUM_FACES = 10 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
 	IM_WIDTH = 20 # this actually the dims the CNN was trained on. 
 	IM_HEIGHT = 20
 	_model_dir = r'my_network_trained.h5'
-
+	
 	def __init__(self):
 		print("made class")
 	'''
@@ -27,8 +27,16 @@ class run_one_image():
 		for y in range(0,y_up_to,step_size):
 			for x in range(0,x_up_to,step_size):
 				yield (x,y,image[y:y+kernel_size[1],x:x+kernel_size[0]])
-				
-	
+
+	'''
+	Scales an image to have face height of desired_f_height based on old_f_height
+	'''
+	def scale_image_to_face_size(self, img, desired_f_height, old_f_height):
+		height, width, _ = img.shape
+		scale_factor = desired_f_height/old_f_height
+		n_height, n_width = (int(height*scale_factor), int(width*scale_factor))
+		return cv2.resize(img,(n_width, n_height))
+
 	# Malisiewicz et al.
 	# This function was taken from https://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/
 	def non_max_suppression(self, boxes, overlapThresh):
@@ -107,22 +115,20 @@ class run_one_image():
 		for box in boxes_nms:
 			x,y=box[:2]
 			cv2.rectangle(img,(x,y),(x+self.IM_WIDTH,y+self.IM_HEIGHT),(0,255,0),1)
-	#draw_top_k_rectangles(100)
+		return boxes_nms
 
 	'''
 	Runner method '''
 	def detect_faces(self, image):
-		height, width, depth = image.shape
-		print(image.shape)
-		resize_factor = 0.5
-		new_height, new_width = (int(height*resize_factor),int(width*resize_factor))
-		trumpim = cv2.resize(image,(new_width,new_height))
+		height, width, _ = image.shape
+		image = self.scale_image_to_face_size(image, 50, 180)
+		print("resized image to: ", image.shape)
 		count = 0
 		images = []
 		positions = []
 		print("starting the sliding window loop. ")
 		start = time.time()
-		for x,y,im in self.make_sliding_window(trumpim,2, (self.IM_HEIGHT,self.IM_WIDTH)):#Don't change kernel size, resize original image instead. Step size can be changed. 
+		for x,y,im in self.make_sliding_window(image,2, (self.IM_HEIGHT,self.IM_WIDTH)):#Don't change kernel size, resize original image instead. Step size can be changed. 
 			images.append(im)
 			positions.append((x,y))
 			count = count + 1
@@ -142,14 +148,14 @@ class run_one_image():
 			x,y = positions[i]
 			#print("confidence at x %d, y %d: "%(x,y),this_class)
 			if this_class<self.DETC_TRHESH:
-				#cv2.rectangle(trumpim, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
+				#cv2.rectangle(image, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
 				init_boxes.append([x,y,x+self.IM_WIDTH,y+self.IM_HEIGHT]);
-		self.draw_top_k_rectangles(trumpim,classes,positions,self.NUM_FACES)
+		self.draw_top_k_rectangles(image,classes,positions,self.NUM_FACES)
+		return image
+		#cv2.imshow("t",image)
+		#cv2.waitKey()
+		#cv2.destroyAllWindows()
 
-		cv2.imshow("t",trumpim)
-		cv2.waitKey()
-		cv2.destroyAllWindows()
-
-x = run_one_image()
-image = cv2.imread("scaled_image_harry.jpg")
-x.detect_faces(image)
+#x = image_predictor()
+#image = cv2.imread("scaled_image_harry.jpg")
+#x.detect_faces(image)
