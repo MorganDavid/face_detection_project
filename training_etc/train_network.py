@@ -3,6 +3,7 @@ from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_a
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 from keras.models import load_model, Model
+from keras.optimizers import adam
 import numpy
 import os
 import pandas as pd
@@ -50,15 +51,16 @@ test_generator = test_datagen.flow_from_directory(
 
 inputs, preds = networks.cvpr_pnet()
 model = Model(inputs, preds)
+madam = adam(lr = 10e-6);
 if do_train_model:
-  model.compile(loss='binary_crossentropy',
-                optimizer='adam',
+  model.compile(loss='mse',
+                optimizer=madam,
                 metrics=['accuracy'])
 
   model.fit_generator(
       train_generator,
-      steps_per_epoch=128,
-      epochs=20,
+      steps_per_epoch=64,
+      epochs=85,
       validation_data=validation_generator,
       validation_steps=40,
       class_weight='auto')

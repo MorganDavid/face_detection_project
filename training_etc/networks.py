@@ -35,7 +35,7 @@ Networks from CVPR 2015 paper.
 '''
 def cvpr_pnet():
 	inputs = Input(shape=(12,12,3))
-	x = Conv2D(16,(3,3),strides=1)(inputs)
+	x = Conv2D(10,(3,3),strides=1)(inputs)
 	x = MaxPool2D(pool_size=3,strides=2)(x)
 	x = ReLU()(x)
 	x = Flatten()(x)
