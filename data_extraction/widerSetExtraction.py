@@ -17,8 +17,8 @@ _min_im_height = 20
 
 _min_target_dim = 20 # the smallest dimension of the output images. 
 
-_max_ims = 5 # the number of images to generate. 
-_start_line = 100000 # the line number to start at if you want to resume from last time. 
+_max_ims = 8 # the number of images to generate. 
+_start_line = 140000  # the line number to start at if you want to resume from last time. 
 
 _do_write_images = True # Should we write images to file. Turn off for debuging. 
 
@@ -55,6 +55,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 
 #Extracts a list of faces from all the collected images. 
 def extract_list_of_faces(img_names_list,bboxes):
+	print(_root_project_dir)
 	print ("Starting face extraction from file!" if _do_write_images else "[NOT WRITING IMS TO FILE!] Starting face extraction")
 	im_counter = 0 # counts what image we are currenlty looking at.
 	face_imgs = []
@@ -89,7 +90,7 @@ def extract_list_of_faces(img_names_list,bboxes):
 					#cv2.imshow("a",face)
 					#cv2.waitKey();
 					#cv2.destroyAllWindows();
-					if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/20px/new_positives/")+str(face_counter)+"_"+real_im_name),face) 
+					if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/12px/positives/")+str(face_counter)+"_"+real_im_name),face) 
 					
 					face_counter = face_counter+1
 
@@ -100,7 +101,7 @@ def extract_list_of_faces(img_names_list,bboxes):
 
 # Returns a list of FULL (not just the bbox) images for this bbox. scales is the list of face heights you want.
 # output is [img, x,y,w,h] where the coords are the new scaled coords of this bounding box.  
-def make_img_pyramid(im, bbox,scales = [18,19,20,22]):
+def make_img_pyramid(im, bbox,scales = [9,10,11,12]):
 	scaled_imgs = []
 	width, height, _ = im.shape
 	x,y,w,h = bbox

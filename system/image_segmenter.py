@@ -8,7 +8,8 @@ Use "l" to display less rects, 'm' to display more rects, "q" to quit.
  
 import sys
 import cv2
- 
+import time
+
 if __name__ == '__main__':
     # If image path and f/q is not passed as command
     # line arguments, quit and display help message
@@ -19,14 +20,14 @@ if __name__ == '__main__':
     # speed-up using multithreads
     cv2.setUseOptimized(True);
     cv2.setNumThreads(4);
- 
+ 	
     # read image
     im = cv2.imread(sys.argv[1])
     # resize image
     newHeight = 200
     newWidth = int(im.shape[1]*200/im.shape[0])
     im = cv2.resize(im, (newWidth, newHeight))    
- 
+    start = time.time()
     # create Selective Search Segmentation Object using default parameters
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
  
@@ -48,13 +49,15 @@ if __name__ == '__main__':
     # run selective search segmentation on input image
     rects = ss.process()
     print('Total Number of Region Proposals: {}'.format(len(rects)))
-     
+    end = time.time()
+    print(end - start)
+
     # number of region proposals to show
     numShowRects = 100
     # increment to increase/decrease total number
     # of reason proposals to be shown
     increment = 20
- 
+    
     while True:
         # create a copy of original image
         imOut = im.copy()
@@ -67,7 +70,7 @@ if __name__ == '__main__':
                 cv2.rectangle(imOut, (x, y), (x+w, y+h), (0, 255, 0), 1, cv2.LINE_AA)
             else:
                 break
- 
+   
         # show output
         cv2.imshow("Output", imOut)
  
@@ -89,3 +92,4 @@ if __name__ == '__main__':
             break
     # close image show window
     cv2.destroyAllWindows()
+    
