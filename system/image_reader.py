@@ -24,12 +24,17 @@ def open_camera_device(device_number):
 
 def read_cam(video_capture):
     if video_capture.isOpened():
+<<<<<<< HEAD
         windowName = "Face Detection"
+=======
+        windowName = "CannyDemo"
+>>>>>>> fa962d1f80bb3e6b8f283238182158c6e3ab496f
         cv2.namedWindow(windowName, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(windowName,250,200)
         cv2.moveWindow(windowName,0,0)
         cv2.setWindowTitle(windowName,"Face Detection")
         showFullScreen = False
+<<<<<<< HEAD
         predictor = image_predictor()
         while True:
             if cv2.getWindowProperty(windowName, 0) < 0: # Check to see if the user closed the window
@@ -53,6 +58,22 @@ def read_cam(video_capture):
             if key == 27: # Check for ESC key
                 cv2.destroyAllWindows()
                 break 
+=======
+        while True:
+            if cv2.getWindowProperty(windowName, 0) < 0: # Check to see if the user closed the window
+                # This will fail if the user closed the window; Nasties get printed to the console
+                break;
+            ret_val, frame = video_capture.read();
+            
+            displayBuf = frame #displayBuf is the CV2 image object
+            predictor = image_predictor()
+            img = predictor.detect_faces(displayBuf)
+            cv2.imshow(windowName,img)
+            key=cv2.waitKey(10)
+            if key == 27: # Check for ESC key
+                cv2.destroyAllWindows()
+                break ;
+>>>>>>> fa962d1f80bb3e6b8f283238182158c6e3ab496f
               
     else:
      print ("camera open failed")
