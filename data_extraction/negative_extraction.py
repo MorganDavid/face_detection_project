@@ -5,15 +5,24 @@ from widerSetExtraction import get_names_and_boxes
 import random
 import numpy as np
 import math 
+import pickle
 
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 print(_root_project_dir)
 _images_path = os.path.join(_root_project_dir, r"data/raw_datasets/WIDER_train/images")
 _txt_path = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt")
 
-_max_ims = 1000
-_min_target_dim = 12 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
-_start_line =50000
+multi_file = True
+
+_max_ims = 700
+_min_target_dim = 24 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
+dset = "val" # either "train" or "val"
+
+_im_save_dir = r"data/{}px_30k/{}/neg/".format(_min_target_dim,dset) # dirs should end in /
+_db_save_dir = r"data/{}px_30k/".format(_min_target_dim)
+_pckl_file_name = "{}_neg.pkl".format(dset)
+
+_start_line = 80000
 _negatives_per_image_max = 3
 
 # takes the list of bboxes and removes all but the positional attributes (the first four columns). 
@@ -45,8 +54,10 @@ def extract_negatives(image_path, names, boxes, negs_per_img):
 			# TODO: make IOU value a percentage of image size (not sure if needed) currently using number of pixels overlapped
 			while(iou>2):
 				#randomly calculate the possition of this negative box
-				neg_width = random.randint(_min_target_dim-3,_min_target_dim)
-				neg_height = random.randint(neg_width,neg_width+6)
+				#neg_width = random.randint(_min_target_dim-3,_min_target_dim) # Enable this when using the old no-regression system
+				#neg_height = random.randint(neg_width,neg_width+6)
+				neg_width = _min_target_dim
+				neg_height = _min_target_dim
 				neg_x = random.randint(0,width-neg_width)
 				neg_y = random.randint(0,height-neg_height)
 
@@ -89,7 +100,27 @@ names, boxes = get_names_and_boxes(_txt_path, _start_line, _max_ims) # use funct
 #print(names, " ", boxes)
 
 negatives = extract_negatives(_images_path, names, boxes, _negatives_per_image_max)
+num = 0
+out_db = [] # file to be pickled contain all file paths and boxes. 
 for n in range(0,len(negatives)):
-	write_dir = os.path.join(_root_project_dir,r"data/12px/training/negatives")+str(random.randint(0,10))+str(names[n].split('/')[1])
-	cv2.imwrite(write_dir,negatives[n])
+	write_dir = _im_save_dir+str((_start_line+num))+".jpg"
+	out_db.append([write_dir, 0, [0,0,0,0]])
+
+	cv2.imwrite(os.path.join(_root_project_dir,write_dir),negatives[n])
 	print("Just wrote somin to ",write_dir)
+	num = num + 1
+
+# If there is already a file with equal name, append to that. 
+if multi_file and os.path.isfile(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name)):
+	print("MULTI FILE")
+	with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'rb') as f:
+		old = pickle.load(f)
+	out_db = out_db+old
+print("new length of db is",len(out_db))
+
+with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'wb') as f2:
+	pickle.dump(out_db, f2)
+with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'rb') as f3:
+	check = pickle.load(f3)
+print("writen database has ", len(check))
+	

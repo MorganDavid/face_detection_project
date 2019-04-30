@@ -6,7 +6,7 @@ import random
 import numpy as np
 import math 
 
-_min_target_dim = 12
+_min_target_dim = 24
 
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 print(_root_project_dir)
@@ -27,8 +27,8 @@ for i in range(6,len(categories)):
 		height, width, _ = im.shape
 		print(im_pth)
 		#randomly calculate the possition of this negative box
-		neg_width = random.randint(_min_target_dim-3,_min_target_dim)
-		neg_height = random.randint(neg_width,neg_width+6)
+		neg_width = _min_target_dim
+		neg_height =_min_target_dim
 		neg_x = random.randint(0,width-neg_width)
 		neg_y = random.randint(0,height-neg_height)
 		cropped_img = im[neg_y:neg_y+neg_height,neg_x:neg_x+neg_width]

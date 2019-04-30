@@ -1,5 +1,5 @@
 import keras
-from keras.layers import Conv2D, Dense, MaxPool2D, Input, ReLU, Reshape, Flatten, Dropout, Lambda
+from keras.layers import Conv2D, Dense, MaxPool2D, Input, ReLU,PReLU, Reshape, Flatten, Dropout, Lambda, concatenate
 from keras.optimizers import adam
 from keras.backend import batch_flatten
 IM_HEIGHT=12#Make sure these are the same in train_network as they are here!
@@ -46,16 +46,39 @@ def cvpr_12net():
 Networks from MTCNN paper. 
 '''
 def mtcnn_pnet():
-	inputs = Input(shape = [12,12,3]) # change this shape to [None,None,3] to enable arbitraty shape input
-	x = Conv2D(10,(3,3),strides=1,padding='valid',name='conv1')(inputs)
-	x = PReLU(shared_axes=[1,2],name='prelu1')(x)
+	inputs = Input(shape = [12,12,3])
+	x = Conv2D(10,(3,3),strides=1)(inputs)
+	x = PReLU(shared_axes=[1,2])(x) # share the weights through the depth of this convolution.
 	x = MaxPool2D(pool_size=2)(x) 
-	x = Conv2D(16,(3,3),strides=1,padding='valid',name='conv2')(x)
-	x = PReLU(shared_axes=[1,2],name='prelu2')(x)
-	x = Conv2D(32,(3,3),strides=1,padding='valid',name='conv3')(x)
-	x = PReLU(shared_axes=[1,2],name='prelu3')(x)
-	classifier = Conv2D(2, (1, 1), activation='softmax',name='classifier1')(x) # construct 
-	classify = Reshape((2,))(classify) # Flatten the coords
-	regression = Conv2D(4, (1, 1),name='bbox1')(x) # aligning the box closer to the face. 
-	regression = Reshape((4,))(regression)
-	return inputs, classifier
+
+	x = Conv2D(16,(3,3),strides=1)(x)
+	x = PReLU(shared_axes=[1,2])(x)
+	x = Conv2D(32,(3,3),strides=1)(x)
+	x = PReLU(shared_axes=[1,2])(x)
+	classifier = Conv2D(2, (1, 1), activation='softmax')(x) # classifier as 1 or 0
+	classifier = Reshape((2,),name="class_output")(classifier) # flatten the classification output
+	regression = Conv2D(4, (1, 1))(x) # outputs 4 coords of where face is in 12x12.
+	regression = Reshape((4,),name="regr_output")(regression) 
+	return inputs, classifier, regression
+
+def mtcnn_rnet():
+	inputs = Input(shape = [24,24,3])
+	x = Conv2D(28,(3,3),strides=1)(inputs)
+	x = PReLU(shared_axes=[1,2])(x)
+	x = MaxPool2D(pool_size=3)(x) 
+	
+	x = Conv2D(48,(3,3),strides=1)(inputs)
+	x = PReLU(shared_axes=[1,2])(x)
+	x = MaxPool2D(pool_size=3)(x) 
+
+	x = Conv2D(64,(2,2),strides=1)(inputs)
+	x = PReLU(shared_axes=[1,2])(x)
+
+	x = Flatten()(x)
+
+	x = Dense(128)(x)
+	x = Dropout(0.1)(x)
+	x = PReLU(shared_axes=[1])(x)
+	classifier = Dense(2, name="class_output", activation='softmax')(x)
+	regression = Dense(4, name="regr_output")(x)
+	return inputs, classifier, regression

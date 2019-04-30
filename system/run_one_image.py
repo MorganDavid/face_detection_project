@@ -7,11 +7,11 @@ from keras.models import load_model
 import time
 
 class run_one_image():
-	DETC_TRHESH = 1.5e-11#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
+	DETC_TRHESH = -0.99999999#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
 	NUM_FACES = 80 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
-	IM_WIDTH = 20 # this actually the dims the CNN was trained on. 
-	IM_HEIGHT = 20
-	_model_dir = r'my_network_trained.h5'
+	IM_WIDTH = 12 # this actually the dims the CNN was trained on. 
+	IM_HEIGHT = 12
+	_model_dir = r'multi-output.h5'
 
 	def __init__(self):
 		print("made class")
@@ -114,7 +114,7 @@ class run_one_image():
 	def detect_faces(self, image):
 		height, width, depth = image.shape
 		print(image.shape)
-		resize_factor = 0.5
+		resize_factor = 0.2
 		new_height, new_width = (int(height*resize_factor),int(width*resize_factor))
 		trumpim = cv2.resize(image,(new_width,new_height))
 		count = 0
@@ -135,21 +135,25 @@ class run_one_image():
 		start = time.time()
 		classes = model.predict(images, batch_size=50)
 		print("prediction took ",time.time()-start, " seconds.")
-
+		binary = [x-y for (x,y) in classes[0]]
+		bboxes = classes[1]
+		np.set_printoptions(threshold=sys.maxsize)
+		print(binary)
 		init_boxes = []; # will contain every box which has probability above the detection threashold. 
-		for i in range(0,len(classes)):
-			this_class = classes[i]
+		for i in range(0,len(binary)):
+			this_class = binary[i]
 			x,y = positions[i]
 			#print("confidence at x %d, y %d: "%(x,y),this_class)
 			if this_class<self.DETC_TRHESH:
-				#cv2.rectangle(trumpim, (x,y),(x+IM_WIDTH,y+IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
+				cv2.rectangle(trumpim, (x,y),(x+self.IM_WIDTH,y+self.IM_HEIGHT),(0,255,0),1) # draw all windows first. (no NMS)
 				init_boxes.append([x,y,x+self.IM_WIDTH,y+self.IM_HEIGHT]);
-		self.draw_top_k_rectangles(trumpim,classes,positions,self.NUM_FACES)
+		print(init_boxes)
+		#self.draw_from_threashold(trumpim,init_boxes)
 
 		cv2.imshow("t",trumpim)
 		cv2.waitKey()
 		cv2.destroyAllWindows()
 
 x = run_one_image()
-image = cv2.imread("scaled_image_harry.jpg")
+image = cv2.imread("dude-forest.jpg")
 x.detect_faces(image)

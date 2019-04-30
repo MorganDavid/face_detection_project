@@ -5,22 +5,31 @@ from os.path import dirname, abspath
 import random
 import itertools # for permutations. 
 import math
+import pickle 
 
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 IMAGE_FOLDER_PATH = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/images") #should be the top level 'images' folder.
 TRAINING_BBOX_WIDER = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider_face_train_bbx_gt.txt")
 
+
 # Minimum width and height for every face from the SOURCE dataset. Use _min_target_dim for output size!
 # Only one of these needs to be true for image to be valid. 
-_min_im_width = 20 
-_min_im_height = 20
+_min_im_width = 30
+_min_im_height = 30
 
-_min_target_dim = 20 # the smallest dimension of the output images. 
+_min_target_dim = 24 # This is the size of the image on x and y, All images are square.
 
-_max_ims = 8 # the number of images to generate. 
-_start_line = 140000  # the line number to start at if you want to resume from last time. 
+dset = "val" # either train or val
+
+_im_save_dir = r"data/{}px_30k/{}/pos/".format(_min_target_dim,dset) # dirs should end in /
+_db_save_dir = r"data/{}px_30k/".format(_min_target_dim)
+_pckl_file_name = "{}_pos.pkl".format(dset)
+
+_max_ims = 1000 # the number of images to generate. 
+_start_line = 110000 # the line number to start at if you want to resume from last time. 
 
 _do_write_images = True # Should we write images to file. Turn off for debuging. 
+multi_file = True # If this is true then we don't overide old im data, instead add to them.
 
 # Gets all the images from the file. Outputs a list of images, each with a list of boundingboxes inside them. The layout for one bounding box is:
 # x1, y1, w, h, blur, expression, illumination, invalid, occlusion, pose
@@ -31,7 +40,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 	imgname = []
 	bbox = []
 	im_count = 0 # the number of images we've taken
-	counter = 0#The line in the file we are currently at.
+	counter = 0 # The line in the file we are currently at.
 	for i in bbxfile:
 		if len(i[:-1])<4 and counter >= start_line: # First check if this is a face count line (length <3)
 			bboxForThisImage = []
@@ -39,7 +48,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 				this_bbox =bbxfile[z][:-1]#Take the \n off
 				string_to_list = [int(i) for i in this_bbox.split()] 
 				#print(string_to_list)
-				if string_to_list[2]>=20 or string_to_list[3]>=20: 
+				if string_to_list[2]>=_min_im_width or string_to_list[3]>=_min_im_height: 
 					if string_to_list[8] == 0 and string_to_list[7]==0 and string_to_list[9] == 0 and string_to_list[4] == 0 and \
 					string_to_list[7] == 0: #8 is occlusion (0 for none, 1 for partial, 2 for full) and 7 is invalid face. 9 is typical vs atypical pose
 						bboxForThisImage.append(string_to_list)
@@ -55,53 +64,90 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 
 #Extracts a list of faces from all the collected images. 
 def extract_list_of_faces(img_names_list,bboxes):
-	print(_root_project_dir)
 	print ("Starting face extraction from file!" if _do_write_images else "[NOT WRITING IMS TO FILE!] Starting face extraction")
 	im_counter = 0 # counts what image we are currenlty looking at.
 	face_imgs = []
+	face_counter = 0 # Counts how many faces we got so far 
+	out_db = [] # This is the array that we will pickle out. Structure [[img_path,label,[x1,y1,x2,y2]]]
+
 	for im_name in img_names_list:
 		img = cv2.imread(os.path.join(IMAGE_FOLDER_PATH,im_name))	
 		width, height, _ = img.shape
-		face_counter = 0 # Counts how many faces we got from this image. 
 		
 		for box in bboxes[im_counter]: # Loop through all the bboxes in this image. 
 			box = numpy.asarray(box)
 			box = box[:4].tolist()
-
+			x,y,w,h = box
 			real_im_name = im_name.split("/")[1]
 			print("this sbox is: ", box)
 			
-			scaled_imgs = make_img_pyramid(im = img, bbox = box)
-			for scaled_im in scaled_imgs: # loop through every image in the image pyramid. 
-				new_width, new_height, _ = scaled_im[0].shape # get resiszed img shape
-				x,y,w,h = scaled_im[1:] # get resized image bbox shape. 
+			transform_range = 0.2
+			# Make new size randomly selected based on face size. 
+			new_size = random.randint(int( min(w,h)*0.9),int(max(w,h)*1.3))
+			x_trans = random.randint(int(w*-transform_range), int(w*transform_range)) # transform the box based on width, randomly. 
+			y_trans = random.randint(int(h*-transform_range), int(h*transform_range))
 
-				print("[current box info] x is %d, y is %d. w is %d h is %d img dims are: %d x %d "%(x,y,w,h,new_width, new_height))
-				
-				''' Transform the bounding box around the face. '''
-				transformations_x = [-1,0,1] # amounts to move the box around the face for preventing overfitting.
-				transformations_y = [-3,-2,-1,0,1,2]
-				perms = list(itertools.product(transformations_x,transformations_y))
-				#print("permutations are: ", perms, ". creating ", len(perms), " images for this face.")
-				# Move over all permutations of transformations and write them. 
-				for trans_x,trans_y in perms:
-					print("x %d y %d trans_x %d trans_y %d"%(x,y,trans_x,trans_y))
-					face = scaled_im[0][y+trans_y:y+trans_y+h,x+trans_x:x+trans_x+w]
-					#cv2.imshow("a",face)
-					#cv2.waitKey();
-					#cv2.destroyAllWindows();
-					if _do_write_images: cv2.imwrite(os.path.join(os.path.join(_root_project_dir,r"data/12px/positives/")+str(face_counter)+"_"+real_im_name),face) 
-					
-					face_counter = face_counter+1
+			# x,y centre of the bbox
+			x_centre = box[0] + w/2
+			y_centre = box[1] + h/2
 
-				#print(face_counter," faces done already. just wrote face ", im_name+"- x: ", x, " y: ", y, " w: ", w, " h: ", h)
-		print("finished writing image: ",im_name)
+			# Tranformed centre
+			new_x_centre = x_centre + x_trans
+			new_y_centre = y_centre + y_trans
+			print("new x centre is ", new_x_centre, " old one: ", x_centre)
+			# new top left corner
+			new_x = int(new_x_centre - new_size/2)
+			new_y = int(new_y_centre - new_size/2)
+			new_w = new_size 
+			new_h = new_size 
+
+			if new_x < 0 or new_y < 0 or new_w+new_x > width or new_h+new_y > height: continue
+
+			print("top corner x is ", new_x, " old top corner x", x)
+			crop_area_im = img[new_y:new_size+new_y,new_x:new_x+new_size]
+			crp_w,crp_h, _ = crop_area_im.shape
+		
+			# Construct the coordinates of this face bbox relative to new crop_area_im
+			b_x = x-new_x
+			b_y = y-new_y
+			new_bbox = [b_x,b_y,w,h] 
+
+			# Work out the resize factor so the sizes are relative to the new small image. 
+			x_scale = _min_target_dim/crp_w
+			y_scale = _min_target_dim/crp_h
+			#Convert the new bbox to new scale
+			scaled_bbox = [int(new_bbox[0]*x_scale), int(new_bbox[1]*y_scale), int(new_bbox[2]*x_scale), int(new_bbox[3]*y_scale)] # stored as [x,y,w,h]
+
+			resized_im = cv2.resize(crop_area_im,(_min_target_dim,_min_target_dim),interpolation=cv2.INTER_CUBIC)
+			#cv2.rectangle(resized_im, (scaled_bbox[0],scaled_bbox[1]),(scaled_bbox[0]+scaled_bbox[2],scaled_bbox[1]+scaled_bbox[3]),(0,255,0))# enable this to draw the bounding boxes on the output. 
+
+			im_path = _im_save_dir+str(_start_line + face_counter)+".jpg"
+			done = cv2.imwrite(os.path.join(_root_project_dir, im_path), resized_im)
+
+			out_db.append([im_path, 1, scaled_bbox]) # Add this face output database.
+			face_counter = face_counter+1
 		im_counter = im_counter+1
+	print("Generated im count: ", len(out_db) )
+	# If there is already a file with equal name, append to that. 
+	if multi_file and os.path.isfile(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name)):
+		print("MULTI FILE")
+		with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'rb') as f:
+			old = pickle.load(f)
+		out_db = out_db+old
+	print("new length of db is",len(out_db))
+
+	with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'wb') as f2:
+		pickle.dump(out_db, f2)
+	with open(os.path.join(_root_project_dir,_db_save_dir+_pckl_file_name),'rb') as f3:
+		check = pickle.load(f3)
+	print("writen database has ", len(check))
+	
+
 	return face_imgs
 
 # Returns a list of FULL (not just the bbox) images for this bbox. scales is the list of face heights you want.
 # output is [img, x,y,w,h] where the coords are the new scaled coords of this bounding box.  
-def make_img_pyramid(im, bbox,scales = [9,10,11,12]):
+def make_img_pyramid(im, bbox,scales = [18,19,20,22]):
 	scaled_imgs = []
 	width, height, _ = im.shape
 	x,y,w,h = bbox
