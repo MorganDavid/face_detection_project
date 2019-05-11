@@ -14,15 +14,15 @@ _txt_path = os.path.join(_root_project_dir,r"data/raw_datasets/WIDER_train/wider
 
 multi_file = True
 
-_max_ims = 700
+_max_ims = 200
 _min_target_dim = 24 # make sure this is the same as the var in the widerSetExtraction file. Determines the minimum image dimension of the output.
 dset = "val" # either "train" or "val"
 
-_im_save_dir = r"data/{}px_30k/{}/neg/".format(_min_target_dim,dset) # dirs should end in /
-_db_save_dir = r"data/{}px_30k/".format(_min_target_dim)
+_im_save_dir = r"data/{}px_new5k/{}/neg/".format(_min_target_dim,dset) # dirs should end in /
+_db_save_dir = r"data/{}px_new5k/".format(_min_target_dim)
 _pckl_file_name = "{}_neg.pkl".format(dset)
 
-_start_line = 80000
+_start_line = 130000
 _negatives_per_image_max = 3
 
 # takes the list of bboxes and removes all but the positional attributes (the first four columns). 

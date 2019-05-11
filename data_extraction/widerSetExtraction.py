@@ -19,16 +19,17 @@ _min_im_height = 30
 
 _min_target_dim = 24 # This is the size of the image on x and y, All images are square.
 
-dset = "val" # either train or val
+dset = "train" # either train or val
 
-_im_save_dir = r"data/{}px_30k/{}/pos/".format(_min_target_dim,dset) # dirs should end in /
-_db_save_dir = r"data/{}px_30k/".format(_min_target_dim)
+_im_save_dir = r"data/{}px_mined/{}/pos/".format(_min_target_dim,dset) # dirs should end in /
+_db_save_dir = r"data/{}px_mined/".format(_min_target_dim)
 _pckl_file_name = "{}_pos.pkl".format(dset)
 
-_max_ims = 1000 # the number of images to generate. 
-_start_line = 110000 # the line number to start at if you want to resume from last time. 
+_max_ims = 3500 # the number of images to generate (not faces). 
+_start_line = 50000 # the line number to start at if you want to resume from last time. 
+_do_extra_transformations = False # Enable this to make every face output multiple images at different transformations and different scales.
 
-_do_write_images = True # Should we write images to file. Turn off for debuging. 
+_do_write_images = False # Should we write images to file. Turn off for debuging. 
 multi_file = True # If this is true then we don't overide old im data, instead add to them.
 
 # Gets all the images from the file. Outputs a list of images, each with a list of boundingboxes inside them. The layout for one bounding box is:
@@ -60,6 +61,7 @@ def get_names_and_boxes(pathToTxt, start_line, max_ims):
 			if im_count > max_ims: break
 			
 		counter=counter+1
+	print(bbox)
 	return imgname,bbox
 
 #Extracts a list of faces from all the collected images. 
@@ -68,64 +70,69 @@ def extract_list_of_faces(img_names_list,bboxes):
 	im_counter = 0 # counts what image we are currenlty looking at.
 	face_imgs = []
 	face_counter = 0 # Counts how many faces we got so far 
-	out_db = [] # This is the array that we will pickle out. Structure [[img_path,label,[x1,y1,x2,y2]]]
+	out_db = [] # This is the array that we will pickle out. Structure [[img_path,label,[x1,y1,w,h]]]
 
 	for im_name in img_names_list:
 		img = cv2.imread(os.path.join(IMAGE_FOLDER_PATH,im_name))	
 		width, height, _ = img.shape
-		
+		print("at ",im_name)
 		for box in bboxes[im_counter]: # Loop through all the bboxes in this image. 
-			box = numpy.asarray(box)
-			box = box[:4].tolist()
-			x,y,w,h = box
-			real_im_name = im_name.split("/")[1]
-			print("this sbox is: ", box)
+			trans_x = [-2,-1,0,1,2]
+			trans_y = [-4,-3,-2,-1,0,1,2,3,4]
+			transfrms = [list(x) for x in itertools.product(trans_x,trans_y)]
+			transfrms = numpy.asarray(transfrms)[numpy.random.randint(0,len(trans_x)*len(trans_y),size=random.randint(1,7))]
+			#print("transforms are:",transfrms)
+			if not _do_extra_transformations: transfrms = [[0,0]]
+			for trans_x,trans_y in transfrms:
+				box = numpy.asarray(box)
+				box = box[:4].tolist()
+				x,y,w,h = box
+				real_im_name = im_name.split("/")[1]
+				#print("this sbox is: ", box)
+				
+				transform_range = 0.2
+				# Make new size randomly selected based on face size. 
+				new_size = random.randint(int( min(w,h)*0.9),int(max(w,h)*1.3))
+				x_trans = random.randint(int(w*-transform_range), int(w*transform_range))+trans_x # transform the box based on width, randomly. 
+				y_trans = random.randint(int(h*-transform_range), int(h*transform_range))+trans_y
+
+				# x,y centre of the bbox
+				x_centre = box[0] + w/2
+				y_centre = box[1] + h/2
+
+				# Tranformed centre
+				new_x_centre = x_centre + x_trans
+				new_y_centre = y_centre + y_trans
+				# new top left corner
+				new_x = int(new_x_centre - new_size/2)
+				new_y = int(new_y_centre - new_size/2)
+				new_w = new_size 
+				new_h = new_size 
+
+				if new_x < 0 or new_y < 0 or new_w+new_x > width or new_h+new_y > height: continue
+
+				crop_area_im = img[new_y:new_size+new_y,new_x:new_x+new_size]
+				crp_w,crp_h, _ = crop_area_im.shape
 			
-			transform_range = 0.2
-			# Make new size randomly selected based on face size. 
-			new_size = random.randint(int( min(w,h)*0.9),int(max(w,h)*1.3))
-			x_trans = random.randint(int(w*-transform_range), int(w*transform_range)) # transform the box based on width, randomly. 
-			y_trans = random.randint(int(h*-transform_range), int(h*transform_range))
+				# Construct the coordinates of this face bbox relative to new crop_area_im
+				b_x = x-new_x
+				b_y = y-new_y
+				new_bbox = [b_x,b_y,w,h] 
 
-			# x,y centre of the bbox
-			x_centre = box[0] + w/2
-			y_centre = box[1] + h/2
+				# Work out the resize factor so the sizes are relative to the new small image. 
+				x_scale = _min_target_dim/crp_w
+				y_scale = _min_target_dim/crp_h
+				#Convert the new bbox to new scale
+				scaled_bbox = [int(new_bbox[0]*x_scale), int(new_bbox[1]*y_scale), int(new_bbox[2]*x_scale), int(new_bbox[3]*y_scale)] # stored as [x,y,w,h]
 
-			# Tranformed centre
-			new_x_centre = x_centre + x_trans
-			new_y_centre = y_centre + y_trans
-			print("new x centre is ", new_x_centre, " old one: ", x_centre)
-			# new top left corner
-			new_x = int(new_x_centre - new_size/2)
-			new_y = int(new_y_centre - new_size/2)
-			new_w = new_size 
-			new_h = new_size 
+				resized_im = cv2.resize(crop_area_im,(_min_target_dim,_min_target_dim),interpolation=cv2.INTER_CUBIC)
+				#cv2.rectangle(resized_im, (scaled_bbox[0],scaled_bbox[1]),(scaled_bbox[0]+scaled_bbox[2],scaled_bbox[1]+scaled_bbox[3]),(0,255,0))# enable this to draw the bounding boxes on the output. 
 
-			if new_x < 0 or new_y < 0 or new_w+new_x > width or new_h+new_y > height: continue
+				im_path = _im_save_dir+str(_start_line + face_counter)+".jpg"
+				done = cv2.imwrite(os.path.join(_root_project_dir, im_path), resized_im)
 
-			print("top corner x is ", new_x, " old top corner x", x)
-			crop_area_im = img[new_y:new_size+new_y,new_x:new_x+new_size]
-			crp_w,crp_h, _ = crop_area_im.shape
-		
-			# Construct the coordinates of this face bbox relative to new crop_area_im
-			b_x = x-new_x
-			b_y = y-new_y
-			new_bbox = [b_x,b_y,w,h] 
-
-			# Work out the resize factor so the sizes are relative to the new small image. 
-			x_scale = _min_target_dim/crp_w
-			y_scale = _min_target_dim/crp_h
-			#Convert the new bbox to new scale
-			scaled_bbox = [int(new_bbox[0]*x_scale), int(new_bbox[1]*y_scale), int(new_bbox[2]*x_scale), int(new_bbox[3]*y_scale)] # stored as [x,y,w,h]
-
-			resized_im = cv2.resize(crop_area_im,(_min_target_dim,_min_target_dim),interpolation=cv2.INTER_CUBIC)
-			#cv2.rectangle(resized_im, (scaled_bbox[0],scaled_bbox[1]),(scaled_bbox[0]+scaled_bbox[2],scaled_bbox[1]+scaled_bbox[3]),(0,255,0))# enable this to draw the bounding boxes on the output. 
-
-			im_path = _im_save_dir+str(_start_line + face_counter)+".jpg"
-			done = cv2.imwrite(os.path.join(_root_project_dir, im_path), resized_im)
-
-			out_db.append([im_path, 1, scaled_bbox]) # Add this face output database.
-			face_counter = face_counter+1
+				out_db.append([im_path, 1, scaled_bbox]) # Add this face output database.
+				face_counter = face_counter+1
 		im_counter = im_counter+1
 	print("Generated im count: ", len(out_db) )
 	# If there is already a file with equal name, append to that. 

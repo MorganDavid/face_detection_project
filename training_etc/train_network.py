@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 
-train_path = os.path.join(_root_project_dir,r"data/12px/train")
-val_path = os.path.join(_root_project_dir,r"data/12px/validation")
-test_path = os.path.join(_root_project_dir,r"data/12px/test")
+train_path = os.path.join(_root_project_dir,r"data/24px_mined/train")
+val_path = os.path.join(_root_project_dir,r"data/24px_mined/val")
+test_path = os.path.join(_root_project_dir,r"data/24px_mined/test")
 
-BATCH_SIZE = 20
+BATCH_SIZE = 200
 do_train_model = True
 
-IM_WIDTH=12
-IM_HEIGHT=12
+IM_WIDTH=24
+IM_HEIGHT=24
 
 train_datagen = ImageDataGenerator(horizontal_flip=True,rescale=1./255)#,rotation_range=10,width_shift_range=3,height_shift_range=3,zoom_range=0.12
 test_datagen = ImageDataGenerator(rescale=1./255)
@@ -55,17 +55,17 @@ test_generator = test_datagen.flow_from_directory(
 #model = Model(inputs, preds)
 
 # if we are using a non-functional method:
-model = networks.my_full_net()
+model = networks.cnn_48net()
 madam = adam(lr = 10e-6);
 if do_train_model:
-  model.compile(loss='mse',
+  model.compile(loss='binary_crossentropy',
                 optimizer=madam,
                 metrics=['accuracy'])
 
   history = model.fit_generator(
       train_generator,
       steps_per_epoch=64,
-      epochs=500,
+      epochs=50,
       validation_data=validation_generator,
       validation_steps=40,
       class_weight='auto')
@@ -90,7 +90,7 @@ if do_train_model:
   print(predictions)
   print(model.metrics_names)
 else:
-  model = load_model('test_model.h5')
+  model = load_model('test.h5')
   live_datagen = ImageDataGenerator()
   test_generator = test_datagen.flow_from_directory(
       directory=test_path,  # this is the target directory

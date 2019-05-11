@@ -1,8 +1,9 @@
 import pickle
 # Combines two pkl databases. 
-_file1 = r'train_neg.pkl'
+_file1 = r'train_negs.pkl'
 _file2 = r'train_pos.pkl'
 _out = r'train_db.pkl'
+
 with open(_file1,'rb') as f:
 	f1 = pickle.load(f)
 with open(_file2,'rb') as f:
