@@ -9,13 +9,13 @@ from image_segmenter import image_segmenter
 import copy
 
 class image_predictor():
-	_p_det_thresh = 0.99#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
+	_p_det_thresh = -0.959608#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
 	_r_det_tresh = 0.9999
 	NUM_FACES = 10 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
 	IM_WIDTH = 12 # this actually the dims the CNN was trained on. 
 	IM_HEIGHT = 12
-	p_net_model_dir = r'12_net_mtcnn.h5'
-	r_net_model_dir = r'R-net_mining.h5'
+	p_net_model_dir = r'P-net-mining.h5'
+	r_net_model_dir = r'R-net-mining.h5'
 	SEGMENT_METHOD = "f" # either f or q
 	SEGMENT_MAX_RECTS = 200 # number of segments to produce
 	USE_SEGMENTATION = False # True to use selective search segmentation instead of sliding window. 
@@ -198,7 +198,7 @@ class image_predictor():
 		positions = []
 		#print("starting the sliding window loop. ")
 		start = time.time()
-		
+		blahblah = 0
 		if self.USE_SEGMENTATION:
 			im_iter = self.get_image_segmentations(image)
 		else:
@@ -207,8 +207,8 @@ class image_predictor():
 			images.append(im)
 			positions.append([x,y])
 			count = count + 1
-			
-
+			blahblah=blahblah+1
+		print("NUMBER OF SLIDES ",blahblah)
 		#print("sliding window took ",time.time()-start, " seconds.")	
 		images = np.asarray(images)
 
@@ -221,11 +221,12 @@ class image_predictor():
 		old_init_boxes = init_boxes
 		print("starting R-net prediction")
 		start = time.time()
-		
+		print("init boxes before thing0",init_boxes)
 		ims_for_rnet = []
 		for box in init_boxes:
 			x,y,w,h = box
 			x,y,w,h = [int(x) for x in [x*2,y*2,w*2,h*2]]
+			if w < 5 or h < 5: continue
 			im = big_image[max(0,y):min(y+h,big_image.shape[0]),max(0,x):min(x+w,big_image.shape[1])]
 			#self.norm_and_show_im("blah",im)
 			im = cv2.resize(im,(24,24))
@@ -261,17 +262,17 @@ if __name__ == "__main__":
 	_final_stage_resize_factor = 1 # This for degbugging. =0.5 means the cv2.imshow will half the image size and boxes size.
 	x = image_predictor()
 
-	image = cv2.imread("in_house.jpg")
+	image = cv2.imread("dude-forest.jpg")
 	norm_image = cv2.normalize(image, None, alpha=-1, beta=+1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
 	old_height, old_width, _ = image.shape
 
-	scale_factor, n_width, n_height = x.scale_image_to_face_size(image, 50, 180)
+	scale_factor, n_width, n_height = x.scale_image_to_face_size(image, 50, 200)
 
 	pnet_boxes, rnet_boxes, boxes = x.detect_faces(norm_image,scale_factor)
 
 	#image = cv2.resize(image,(int(old_width*_final_stage_resize_factor),int(old_height*_final_stage_resize_factor)))
-	final_im = x.create_img_with_recs(boxes,image,int((old_width)/n_width))#int((old_width*0.5)/n_width))
+	final_im = x.create_img_with_recs(rnet_boxes,image,int((old_width)/n_width))#int((old_width*0.5)/n_width))
 
 	cv2.imshow("t",final_im)
 	cv2.waitKey()

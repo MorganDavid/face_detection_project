@@ -21,6 +21,9 @@ from sklearn.preprocessing import normalize, scale
 from sklearn import metrics
 import sys
 import keract
+from inspect import signature
+from matplotlib.patches import Rectangle 
+
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -43,16 +46,15 @@ load_dataset_no_pkl(test_path)
 #cv2.imshow("t",cv2.normalize(ims[550], None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8))
 #cv2.waitKey()
 #cv2.destroyAllWindows()
-model = load_model('24_net_mtcnn.h5')
+model = load_model('R-net-mining.h5')
 ims=np.roll(ims,shift=1)
 print(np.asarray(ims).shape)
 #print(lbls)
 
 y_preds = model.predict(x=ims)
 y_preds = np.asarray(y_preds[0])
-print(y_preds)
-y_preds_thresh = [1 if (x2-x1)>0.1 else 0 for x1,x2 in y_preds]
-print("prediction for this is ", y_preds_thresh[1000])
+#print(y_preds)
+y_preds_thresh = [1 if (x2-x1)>0.999 else 0 for x1,x2 in y_preds]
 # Replace this in keract display_activations to make it accept batch images as input for the feature m ap display.
 #for layer_name, acts in zip(['conv2d_1/BiasAdd:0','conv2d_3/BiasAdd:0'],[activations['conv2d_1/BiasAdd:0'], activations['conv2d_3/BiasAdd:0']]):#activations.items():
 #    print("orignal shape",acts.shape)
@@ -72,9 +74,9 @@ print("prediction for this is ", y_preds_thresh[1000])
 report = metrics.classification_report(y_true=y_preds_thresh, y_pred=np.asarray(lbls), output_dict =True)
 print(report)
 matrix = metrics.confusion_matrix(y_preds_thresh, np.asarray(lbls))
-print(matrix)
+#print(matrix)
 act= keract.get_activations(model,ims)
-print("keys",act.keys())
+#print("keys",act.keys())
 #keract.display_activations(act)
 '''
 print("act",act.keys())
@@ -87,12 +89,39 @@ cv2.waitKey()
 y_preds_roc = [(x2-x1) for x1,x2 in y_preds]
 fpr, tpr, thresholds = metrics.roc_curve(lbls,y_preds_roc)
 #print("AUC",metrics.roc_auc_score(lbls,y_preds_roc))
-#print("fpr",[str(x)+"," for x in fpr])
-#print("tpr",[str(x)+"," for x in tpr])
-print("thr",thresholds)
-plt.plot(fpr,tpr)
-plt.title("ROC Curve for R-net predictions on test set of 494.")
-plt.xlabel("False postive rate")
-plt.ylabel("True positive rate")
+
+#plt.plot(fpr,tpr)
+#plt.title("ROC Curve for R-net predictions on test set of 494.")
+#plt.xlabel("False postive rate")
+#plt.ylabel("True positive rate")
 #plt.show()
 
+# Disclaimer: fill plot code taken from sklearn documentation
+average_precision = metrics.average_precision_score(lbls, y_preds_roc)
+
+precision,recall,thr = metrics.precision_recall_curve(lbls,y_preds_roc)
+print(precision.shape, " ", recall.shape, " ", thr.shape)
+df = pd.DataFrame({"prec":precision[:-1],"rec":recall[:-1],"thsh":thr})
+print(df.to_string())
+# In matplotlib < 1.5, plt.fill_between does not have a 'step' argument
+step_kwargs = ({'step': 'post'}
+               if 'step' in signature(plt.fill_between).parameters
+               else {})
+fig,ax = plt.subplots()
+ax.step(recall, precision, color='r', alpha=0.8,
+         where='post')
+ax.fill_between(recall,precision , alpha=0.15, color='r', **step_kwargs)
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('Precision-recall for R-net')
+
+ax.annotate('- Metrics -\nAverage precision:{:.2f}\nAverage Recall:{:.2f}'.format(average_precision,report['macro avg']['recall']), \
+	xy=(0.015, 0.015), xycoords='data',
+    size=10, ha='left', va='bottom',
+    bbox=dict(boxstyle='round', fc='w'))
+
+
+plt.show()

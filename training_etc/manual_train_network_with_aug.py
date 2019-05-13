@@ -26,15 +26,15 @@ _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directo
 
 
 BATCH_SIZE = 256
-EPOCHS = 50
-do_train_model = False
-_model_out_name = 'R-net-mining.h5'
-_net_size = 12 # use this to change network.
+EPOCHS = 300
+do_train_model = True
+_model_out_name = 'R-net-new.h5'
+_net_size = 24 # use this to change network.
 IM_WIDTH=_net_size # legacy variables
 IM_HEIGHT=_net_size
 
-train_path = os.path.join(_root_project_dir,r"data/24px_mined/train_db.pkl".format(IM_HEIGHT))
-val_path = os.path.join(_root_project_dir,r"data/24px_mined/val_db.pkl".format(IM_HEIGHT))
+train_path = os.path.join(_root_project_dir,r"data/{}px_mined/train_db.pkl".format(IM_HEIGHT))
+val_path = os.path.join(_root_project_dir,r"data/{}px_mined/val_db.pkl".format(IM_HEIGHT))
 #test_path = os.path.join(_root_project_dir,r"data/{}px_30k/test_db.pkl".format(IM_HEIGHT))
 
 # Loads images into memory from a DB pickle file. pkl_file is the path to db file. Returns each column individually. 
@@ -47,6 +47,7 @@ def load_dataset(pkl_file):
     
     for i,row in df.iterrows():
         this_im = cv2.imread(os.path.join(_root_project_dir,row['path']))
+        print(os.path.join(_root_project_dir,row['path']))
         if (this_im.shape[0] != _net_size): this_im = cv2.resize(this_im,(_net_size,_net_size),interpolation=cv2.INTER_LINEAR)
         norm_im = cv2.normalize(this_im, None, alpha=-1, beta=+1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
         ims.append(norm_im)
@@ -139,8 +140,8 @@ model = Model()
 model = Model([inputs], [classif, regr])
 model.summary()
 losses = { "class_output":"categorical_crossentropy", "regr_output":"mse" }
-lossWeights = {"class_output": 1.0, "regr_output": 1.0}
-myadam = adam(lr=1e-2)#,decay=1e-11/EPOCHS)
+lossWeights = {"class_output": 1.2, "regr_output": 1.0}
+myadam = adam(lr=,,decay=1e-10/EPOCHS)
 model.compile(optimizer=myadam, loss=losses, loss_weights=lossWeights, metrics=["accuracy"])
 #callbck = EarlyStopping(monitor='val_loss', min_delta=0, patience=100, mode='auto')
 if do_train_model:

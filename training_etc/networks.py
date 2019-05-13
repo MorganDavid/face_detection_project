@@ -93,7 +93,6 @@ def cnn_48net_func():
 def mtcnn_rnet():
 	inputs = Input(shape = [24,24,3])
 	x = Conv2D(28,(3,3),strides=1,padding='same')(inputs)
-	x = BatchNormalization()(x)
 	x = PReLU()(x)
 	x = MaxPool2D(pool_size=3)(x) 
 
@@ -103,7 +102,6 @@ def mtcnn_rnet():
 	x = MaxPool2D(pool_size=3)(x) 
 
 	x = Conv2D(64,(2,2),strides=1,padding='same')(x)
-	x = BatchNormalization()(x)
 	x = PReLU()(x)
 
 	x = Flatten()(x)

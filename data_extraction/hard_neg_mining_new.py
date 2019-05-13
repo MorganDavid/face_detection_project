@@ -9,7 +9,7 @@ import random
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 
 _max_ims = 10000 # number of faces to propose. usually outputs a bit over 
-_start_line = 0
+_start_line = 120000
 numpy.set_printoptions(threshold=sys.maxsize)
 
 model_dir = '12_net_mtcnn.h5' # the model to mine from
@@ -213,7 +213,7 @@ for i,im_name in enumerate(img_names_list):
 	
 	out_im = create_img_with_recs(init_boxes,img,1,(0,255,0))
 	out_im = create_img_with_recs(neg_boxes,out_im,1,(0,0,255))
-	out_im = create_img_with_recs(this_boxes,out_im,1,(255,0,0))
+	#out_im = create_img_with_recs(this_boxes,out_im,1,(255,0,0))
 	cv2.imshow("t",out_im)
 	cv2.waitKey()
 	cv2.destroyAllWindows()
