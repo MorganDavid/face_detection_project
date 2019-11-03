@@ -9,12 +9,13 @@ from image_segmenter import image_segmenter
 import copy
 
 class image_predictor():
-	_p_det_thresh = -0.959608#The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
-	_r_det_tresh = 0.9999
+	_p_det_thresh = 0.7 # The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
+	_orig_r_det_tresh = 0.99
+	_r_det_tresh = _orig_r_det_tresh
 	NUM_FACES = 10 # This is used instead of DETEC_THREASH. Use the top_k_faces function instead. NUM_FACES=2 means take the top 2 most confident face boxes and draw them.
 	IM_WIDTH = 12 # this actually the dims the CNN was trained on. 
 	IM_HEIGHT = 12
-	p_net_model_dir = r'P-net-mining.h5'
+	p_net_model_dir = r'12_net_mtcnn.h5'
 	r_net_model_dir = r'R-net-mining.h5'
 	SEGMENT_METHOD = "f" # either f or q
 	SEGMENT_MAX_RECTS = 200 # number of segments to produce
@@ -24,6 +25,22 @@ class image_predictor():
 	def __init__(self):
 		self._p_net_model = load_model(self.p_net_model_dir)
 		self._r_net_model = load_model(self.r_net_model_dir)
+
+	def inc_r_thresh(self,amnt):
+		self._r_det_tresh=round(self._r_det_tresh+amnt,2)# stop floating point error
+		print("new R-net threashold is: ",self._r_det_tresh)
+	def dec_r_thresh(self,amnt):
+		self._r_det_tresh=round(self._r_det_tresh-amnt,2)
+		print("new R-net threashold is: ",self._r_det_tresh)
+	def reset_r_thresh(self):
+		self._r_det_tresh=self._orig_r_det_tresh#
+		print("Reset R-net threashold to ",self. _r_det_tresh)
+	def toggle_seg(self):
+		self.USE_SEGMENTATION = not self.USE_SEGMENTATION
+	def get_seg(self):
+		return self.USE_SEGMENTATION
+	def get_r_thresh(self):
+		return self._r_det_tresh
 	'''
 	kernel_size is tupple: (height,width)
 	Returns generator. Loop over this function
@@ -35,6 +52,7 @@ class image_predictor():
 		y_up_to = height-kernel_size[1]-step_size
 		for y in range(0,y_up_to,step_size):
 			for x in range(0,x_up_to,step_size):
+				#print(type(image))
 				yield (x,y,image[y:y+kernel_size[1],x:x+kernel_size[0]])
 	
 	def get_image_segmentations(self, image):
@@ -44,6 +62,7 @@ class image_predictor():
 			w, h, _ = im.shape
 			wh_ratio = w/h # Make sure the segmentation is roughly square. 
 			if w > 10 and h > 10 and wh_ratio < 3 and wh_ratio > 0.33:
+				im = cv2.resize(im,(12,12))
 				yield (x,y,im)
 
 	'''
@@ -57,7 +76,7 @@ class image_predictor():
 		return scale_factor, n_width, n_height
 
 	# Malisiewicz et al.
-	# Disclaimer: This function was taken from https://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/
+	# DISCLAIMER: This function was taken from https://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/
 	def non_max_suppression(self, boxes, overlapThresh):		
 		# if there are no boxes, return an empty list
 		if len(boxes) == 0:
@@ -139,13 +158,13 @@ class image_predictor():
 		regr = preds[1]
 		classes = np.asarray([c[1]-c[0] for c in classes]) # make classes 1 dimensional. Higher more likely it's a face
 		init_boxes_inds = np.argwhere(classes>self._r_det_tresh)
-		print("inds are",init_boxes_inds)
-		print("regr {}. \n\n clas {}".format(regr,classes))
+		#print("inds are",init_boxes_inds)
+		#print("regr {}. \n\n clas {}".format(regr,classes))
 		init_boxes_pos = [x[0] for x in np.array(positions)[init_boxes_inds]] # for loop flattens away 1 dimension
 		init_boxes_regr = [x[0] for x in regr[init_boxes_inds]]
 		init_boxes = []
-		print("init_boxes_pos are:", init_boxes_pos)
-		print("regr",init_boxes_regr)
+		#print("init_boxes_pos are:", init_boxes_pos)
+		#print("regr",init_boxes_regr)
 
 		for pos, reg in zip(init_boxes_pos,init_boxes_regr):
 			#print("old reg",reg)
@@ -198,17 +217,16 @@ class image_predictor():
 		positions = []
 		#print("starting the sliding window loop. ")
 		start = time.time()
-		blahblah = 0
 		if self.USE_SEGMENTATION:
 			im_iter = self.get_image_segmentations(image)
 		else:
 			im_iter = self.make_sliding_window(image,2, (self.IM_HEIGHT,self.IM_WIDTH))
-		for x,y,im in im_iter:#Don't change kernel size, resize original image instead. Step size can be changed. 
+		for x,y,im in im_iter:#Don't change kernel size, resize original image instead. Step size can be changed.
 			images.append(im)
 			positions.append([x,y])
 			count = count + 1
-			blahblah=blahblah+1
-		print("NUMBER OF SLIDES ",blahblah)
+		#print("shape of images", np.asarray(images).shape)
+		#print("NUMBER OF SLIDES ",blahblah)
 		#print("sliding window took ",time.time()-start, " seconds.")	
 		images = np.asarray(images)
 
@@ -218,24 +236,28 @@ class image_predictor():
 		#print("P-net prediction took ",time.time()-start, " seconds.")
 
 		init_boxes =  self.extract_from_p_preds(preds, positions)
+		#print(init_boxes)
 		old_init_boxes = init_boxes
-		print("starting R-net prediction")
+		#print("starting R-net prediction")
 		start = time.time()
-		print("init boxes before thing0",init_boxes)
+		#print("init boxes before thing0",init_boxes)
 		ims_for_rnet = []
 		for box in init_boxes:
 			x,y,w,h = box
 			x,y,w,h = [int(x) for x in [x*2,y*2,w*2,h*2]]
+			#print("{},{},{},{}".format(x,y,w,h))
+			#print(big_image.shape)
 			if w < 5 or h < 5: continue
-			im = big_image[max(0,y):min(y+h,big_image.shape[0]),max(0,x):min(x+w,big_image.shape[1])]
+			im = big_image[max(0,y):min(y+h,big_image.shape[0]-1),max(0,x):min(x+w,big_image.shape[1]-1)]
 			#self.norm_and_show_im("blah",im)
 			im = cv2.resize(im,(24,24))
 			
 			ims_for_rnet.append(im)
 		ims_for_rnet = np.asarray(ims_for_rnet)
-		print(init_boxes)
+		if len(init_boxes)<=0: return -1,
+		#print(init_boxes)
 		positions = np.asarray(init_boxes)[:,:2]
-		print("postions",positions)
+		#print("postions",positions)
 		r_preds = self._r_net_model.predict(ims_for_rnet, batch_size = 50)
 
 		init_boxes = self.extract_from_r_preds(r_preds,positions)
