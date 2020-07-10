@@ -1,1 +1,0 @@
-Old models inspired by the mtcnn paper. new ones are better. 
