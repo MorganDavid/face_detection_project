@@ -1,4 +1,7 @@
 # Face Detection on NVIDIA Jetson TX2 using Deep Convolutional Neural Networks.
+ ##### The archive folder in this branch has old models and scripts. 
+
+
 This project uses Deep Convolutional Artificial Neural Networks (CNN) to carry out face detection through a web-cam on the NVIDIA JETSON TX2 embedded computer (windows version also available). Face detection updates on the TX2 run around 2FPS, while modern windows machines run much faster. 
 
 The architecture is made up of two CNNs called P-net and R-net and is inspired by the architecture developed in "A Convolutional Neural Network Cascade for Face Detection by Haoxiang Li, Zhe Lin et al.". Some changes are made in this version to improve performance on low-power embeded systems. Our CNNs were trained on 25k annotated face images from the WIDER dataset and tested on Caltech-101 to yield test accuracy of 95%. 
