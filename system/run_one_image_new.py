@@ -212,11 +212,11 @@ class image_predictor():
 		height, width, _ = src_image.shape
 		image = cv2.resize(src_image, (int(width*scale), int(height*scale)))
 		big_image = cv2.resize(src_image, (int(width*scale*2),int(height*scale*2))) # for 24px R-net
-		#print("resized image to: ", image.shape)
+
 		count = 0
 		images = []
 		positions = []
-		#print("starting the sliding window loop. ")
+
 		start = time.time()
 		if self.USE_SEGMENTATION:
 			im_iter = self.get_image_segmentations(image)
@@ -226,28 +226,24 @@ class image_predictor():
 			images.append(im)
 			positions.append([x,y])
 			count = count + 1
-		#print("shape of images", np.asarray(images).shape)
-		#print("NUMBER OF SLIDES ",blahblah)
-		#print("sliding window took ",time.time()-start, " seconds.")	
+
 		images = np.asarray(images)
 
-		#print("starting P-net prediction")
 		start = time.time()
 		preds = self._p_net_model.predict(images, batch_size=50)
-		#print("P-net prediction took ",time.time()-start, " seconds.")
 
 		init_boxes =  self.extract_from_p_preds(preds, positions)
-		#print(init_boxes)
+
 		old_init_boxes = init_boxes
-		#print("starting R-net prediction")
+
 		start = time.time()
-		#print("init boxes before thing0",init_boxes)
+
 		ims_for_rnet = []
 		for box in init_boxes:
 			x,y,w,h = box
 			x,y,w,h = [int(x) for x in [x*2,y*2,w*2,h*2]]
 			#print("{},{},{},{}".format(x,y,w,h))
-			#print(big_image.shape)
+
 			if w < 5 or h < 5: continue
 			im = big_image[max(0,y):min(y+h,big_image.shape[0]-1),max(0,x):min(x+w,big_image.shape[1]-1)]
 			#self.norm_and_show_im("blah",im)
@@ -256,9 +252,9 @@ class image_predictor():
 			ims_for_rnet.append(im)
 		ims_for_rnet = np.asarray(ims_for_rnet)
 		if len(init_boxes)<=0: return -1,
-		#print(init_boxes)
+
 		positions = np.asarray(init_boxes)[:,:2]
-		#print("postions",positions)
+
 		r_preds = self._r_net_model.predict(ims_for_rnet, batch_size = 50)
 
 		init_boxes = self.extract_from_r_preds(r_preds,positions)
