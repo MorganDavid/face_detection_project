@@ -211,7 +211,8 @@ class image_predictor():
 			#x,y,w,h=box
 			cv2.rectangle(new_im,(x,y),(x+w,y+h),(0,255,0),1)
 		return new_im
-		
+# Demo of how to use this class: Uncoment to run the above on one image called women.jpg. 
+"""
 if __name__ == "__main__":
 	_final_stage_resize_factor = 1 # This for degbugging. =0.5 means the cv2.imshow will half the image size and boxes size.
 	x = image_predictor()
@@ -233,3 +234,4 @@ x.detect_faces(image)
 	cv2.imshow("t",final_im)
 	cv2.waitKey()
 	cv2.destroyAllWindows()
+"""

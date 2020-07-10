@@ -23,6 +23,10 @@ import sys
 import keract
 from inspect import signature
 from matplotlib.patches import Rectangle 
+"""
+Generates roc curve and some other graphs from .h5 file. 
+change `model` variable to change h5 file.
+"""
 
 _root_project_dir = dirname(dirname(dirname(abspath(__file__)))) # go up directories from where we are to get root
 np.set_printoptions(threshold=sys.maxsize)

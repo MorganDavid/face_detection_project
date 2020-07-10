@@ -7,7 +7,8 @@ from keras.models import load_model
 import time
 from image_segmenter import image_segmenter
 import copy
-
+# This class deals with running face detection on a single image. 
+# demo at end of file.
 class image_predictor():
 	_p_det_thresh = 0.7 # The threashold for it being a face (higher = more sensitive) This is used when we need to detect more than one face in the image.harry: 1.5e11 1d: 1.5e4
 	_orig_r_det_tresh = 0.99
@@ -280,11 +281,13 @@ class image_predictor():
 			cv2.rectangle(new_im,(x,y),(x+w,y+h),(0,255,0),2)
 		return new_im
 		
+# Demo of how to use this class (uncomment to run on woman.jpg)
+"""
 if __name__ == "__main__":
 	_final_stage_resize_factor = 1 # This for degbugging. =0.5 means the cv2.imshow will half the image size and boxes size.
 	x = image_predictor()
 
-	image = cv2.imread("dude-forest.jpg")
+	image = cv2.imread("woman.jpg")
 	norm_image = cv2.normalize(image, None, alpha=-1, beta=+1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
 	old_height, old_width, _ = image.shape
@@ -299,3 +302,4 @@ if __name__ == "__main__":
 	cv2.imshow("t",final_im)
 	cv2.waitKey()
 	cv2.destroyAllWindows()
+"""
